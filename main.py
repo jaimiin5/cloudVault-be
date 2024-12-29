@@ -1,16 +1,15 @@
 from flask import Flask, request, jsonify, send_from_directory
 from flask_sqlalchemy import SQLAlchemy
 from flask_cors import CORS
-import jwt
 import datetime
 import os
 from werkzeug.utils import secure_filename
-from flask_jwt_extended import JWTManager, jwt_required, get_jwt_identity
+from flask_jwt_extended import JWTManager, jwt_required, get_jwt_identity,create_access_token
 
 app = Flask(__name__)
 
 CORS(app)
-SECRET_KEY = "your_secret_key"
+SECRET_KEY = "askdno02i2b3kj"
 
 # Database configuration
 app.config["SQLALCHEMY_DATABASE_URI"] = "postgresql://postgres:root@localhost/postgres"
@@ -21,6 +20,10 @@ ALLOWED_EXTENSIONS = {"pdf", "jpg", "jpeg", "png", "docx", "rar", "webm"}
 # jwt token
 app.config["JWT_SECRET_KEY"] = os.getenv("JWT_SECRET_KEY", "your_secret_key")
 jwt = JWTManager(app)
+
+
+def generate_jwt(username):
+    return create_access_token(identity=username, expires_delta=datetime.timedelta(hours=1))
 
 # Initialize SQLAlchemy
 db = SQLAlchemy(app)
@@ -57,14 +60,15 @@ class File(db.Model):
 
 
 # Helper function to generate JWT
-def generate_jwt(username):
-    payload = {
-        "sub": 4,
-        "username": username,
-        "exp": datetime.datetime.now(datetime.timezone.utc)
-        + datetime.timedelta(hours=1),  # Use timezone-aware UTC time
-    }
-    return jwt.encode(payload, SECRET_KEY, algorithm="HS256")
+# def generate_jwt(username):
+#     payload = {
+#         "username": username,
+#         "exp": datetime.datetime.now(datetime.timezone.utc)
+#         + datetime.timedelta(hours=1),  # Use timezone-aware UTC time
+#     }
+#     return create_access_token(identity=username, expires_delta=datetime.timedelta(hours=1))
+
+#     return jwt.encode(payload, SECRET_KEY, algorithm="HS256")
 
 
 # Helper function to check allowed file extensions
@@ -95,6 +99,7 @@ def register():
         db.session.commit()
 
         token = generate_jwt(username)
+        print('asa?????????',token)
         return (
             jsonify(
                 {
@@ -141,6 +146,7 @@ def login():
         return jsonify({"message": str(e)}), 500
 
 
+# this is for all files available in backend
 @app.route("/api/read", methods=["GET"])
 def get_data():
     users = User.query.all()
@@ -193,9 +199,14 @@ def upload_file():
 def get_user_files(user_id):
 
     current_user = get_jwt_identity()
-    print("??? ", current_user)
+    #jwt will get username by token
 
-    if current_user != user_id:
+
+    #this is from db
+    user = User.query.filter_by(id=user_id).first()
+
+    #check if username is exist
+    if current_user != user.username:
         return jsonify({"message": "Unauthorized access"}), 403
 
     page = request.args.get("page", 1, type=int)
